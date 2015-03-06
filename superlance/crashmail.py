@@ -30,10 +30,12 @@
 # Sendmail is used explicitly here so that we can specify the 'from' address.
 
 doc = """\
-crashmail.py [-p processname] [-a] [-o string] [-m mail_address]
+crashmail.py [-w delay_seconds] [-p processname] [-a] [-o string] [-m mail_address]
              [-s sendmail] URL
 
 Options:
+
+-w -- specify number of seconds delay before really send a email.
 
 -p -- specify a supervisor process_name.  Send mail when this process
       transitions to the EXITED state unexpectedly. If this process is
@@ -61,7 +63,7 @@ selection of -p.
 
 A sample invocation:
 
-crashmail.py -p program1 -p group1:program2 -m dev@example.com
+crashmail.py -w 200 -p program1 -p group1:program2 -m dev@example.com
 
 """
 
@@ -78,8 +80,9 @@ def usage():
 
 class CrashMail:
 
-    def __init__(self, programs, any, email, sendmail, optionalheader):
+    def __init__(self, delay, programs, any, email, sendmail, optionalheader):
 
+        self.delay = delay
         self.programs = programs
         self.any = any
         self.email = email
@@ -146,7 +149,7 @@ class CrashMail:
 
 def main(argv=sys.argv):
     import getopt
-    short_args = "hp:ao:s:m:"
+    short_args = "hp:ao:s:m:w"
     long_args = [
         "help",
         "program=",
@@ -154,6 +157,7 @@ def main(argv=sys.argv):
         "optionalheader="
         "sendmail_program=",
         "email=",
+        "delay=",
         ]
     arguments = argv[1:]
     try:
@@ -166,6 +170,8 @@ def main(argv=sys.argv):
     sendmail = '/usr/sbin/sendmail -t -i'
     email = None
     optionalheader = None
+    delay = None
+
 
     for option, value in opts:
 
@@ -187,13 +193,16 @@ def main(argv=sys.argv):
         if option in ('-o', '--optionalheader'):
             optionalheader = value
 
+        if option in ('-w', '--delay'):
+            delay = int(value)
+
     if not 'SUPERVISOR_SERVER_URL' in os.environ:
         sys.stderr.write('crashmail must be run as a supervisor event '
                          'listener\n')
         sys.stderr.flush()
         return
 
-    prog = CrashMail(programs, any, email, sendmail, optionalheader)
+    prog = CrashMail(delay, programs, any, email, sendmail, optionalheader)
     prog.runforever()
 
 
